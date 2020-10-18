@@ -1,0 +1,38 @@
+html {
+    font-family:"Open Sans", sans-serif;
+    overflow-y: hidden;
+    overflow-x: hidden;
+}
+
+body {
+	background-color:rgb(50, 50, 50);
+    overscroll-behavior:none;
+    margin:0;
+}
+
+h1{
+	position:absolute;
+	left:0%;
+	text-align: center;
+	width:100%;
+	visibility: visible;
+}
+
+canvas {
+	position:absolute;
+	width:50%;
+	height:100%;
+	top:0%;
+}
+
+#left{
+	background-color:rgb(230, 230, 150);
+	left:0%;
+
+}
+
+#right{
+	background-color:rgb(150, 230, 230);
+	left:50%;
+
+}
