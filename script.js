@@ -57,7 +57,7 @@ var x = 0;
 var hand;
 
 // Leap.loop uses browser's requestAnimationFrame
-var options = { enableGestures: true };
+var options = { enableGestures: true, host:'192.168.0.133' };
 
 var score = 0;
 
@@ -73,7 +73,6 @@ function keyPress(event){
 
 // Main Leap Loop
 Leap.loop(options, function(frame) {
-  // Showcase some new V2 features
   for (var i = 0, len = frame.hands.length; i < len; i++) {
     hand = frame.hands[i];
 
