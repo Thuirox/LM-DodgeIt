@@ -1,8 +1,10 @@
+// VISUAL CLASSES -----------------------------------------------------------
 class Graphic{
-  constructor(x, y, radius){
+  constructor(x, y, radius, color){
     this.x = x;
     this.y = y;
     this.radius = radius;
+    this.color = color;
   }
 
   draw(ctx){
@@ -13,12 +15,20 @@ class Graphic{
   }
 
   update(){}
+
+
+  hasCollide(obstacle){
+    let dx = this.x - obstacle.x;
+    let dy = this.y - obstacle.y;
+    let distance = Math.sqrt(dx * dx + dy * dy);
+
+    return (distance < this.radius + obstacle.radius);
+  }
 }
 
 class Obstacle extends Graphic{
   constructor(x, color){
-    super(x, 0, 50);
-    this.color = color;
+    super(x, 0, 50, color);
     this.velocityY = 5;
   }
 
@@ -27,53 +37,52 @@ class Obstacle extends Graphic{
   }
 }
 
+/*
+A navigator is a circle representing the player.
+*/
 class Navigator extends Graphic{
   constructor(x, color){
-    super(x, 1000, 100);
-    this.color = color;
+    super(x, 1000, 100, color);
   }
 }
 
-var running = true;
 
-var canvasLeft = document.getElementById("left");
-var ctxLeft = canvasLeft.getContext("2d");
-canvasLeft.width = 1000;
-canvasLeft.height = 1000;
+// VARIABLE INITIALISATIONS -----------------------------------------------------------
+// Pannels initialisation
+let pannels = {
+  left: {
+    canvas: document.getElementById("left"),
+    ctx: null,
+    obstacles: [],
+    navigator: new Navigator(500, "rgb(150, 230, 230)")
+  },
 
-var canvasRight = document.getElementById("right");
-var ctxRight = canvasRight.getContext("2d");
-canvasRight.width = 1000;
-canvasRight.height = 1000;
+  right:{
+    canvas: document.getElementById("right"),
+    ctx: null,
+    obstacles: [],
+    navigator: new Navigator(500, "rgb(230, 230, 150)"),
+  }
+};
 
-var obstacleLeft = [];
-var obstacleRight = [];
+for(const side in pannels){
+  pannels[side].ctx = pannels[side].canvas.getContext("2d");
+  pannels[side].canvas.width = 1000;
+  pannels[side].canvas.height = 1000;
+}
 
-var navigatorLeft = new Navigator(500, "rgb(150, 230, 230)");
-var navigatorRight = new Navigator(500, "rgb(230, 230, 150)");
-
-var x = 0;
-
-var hand;
-
+let score = 0;
 // Leap.loop uses browser's requestAnimationFrame
-var options = { enableGestures: true, host:'192.168.0.133' };
+let options = { enableGestures: true };
 
-var score = 0;
 
-function keyPress(event){
-  if(event.which == 32){
-    if(running){
-      pause();
-    } else {
-      start();
-    }
-  }
-}
-
+// ----------------------------------------------------------- LEAP MOTION LOOP
 // Main Leap Loop
 Leap.loop(options, function(frame) {
-  for (var i = 0, len = frame.hands.length; i < len; i++) {
+  let x;
+  let hand;
+
+  for (let i = 0, len = frame.hands.length; i < len; i++) {
     hand = frame.hands[i];
 
     x = hand.palmPosition[0]*3;
@@ -87,76 +96,138 @@ Leap.loop(options, function(frame) {
       x = 1000;
     }
 
-    if(hand.type == "left"){
-
-      navigatorLeft.x = x;
-
-    } else {
-
-      navigatorRight.x = x;
-    }
+    pannels[hand.type].navigator.x = x
   }
 });
 
-function draw(){
-  if(running){
-    score++;
-    document.getElementById("score").innerHTML = "Score : "+score;
-    drawGeneral(ctxLeft, canvasLeft, navigatorLeft, obstacleLeft);
-    drawGeneral(ctxRight, canvasRight, navigatorRight, obstacleRight);
+// GAME STATE CHANGER -----------------------------------------------------------
+let running = true;
+
+/*
+Start (or continue) the game.
+*/
+function start(){
+  running = true;
+  document.getElementById("pause").style.visibility = "hidden";
+}
+
+/*
+Pause the game.
+*/
+function pause(){
+  running = false;
+  document.getElementById("pause").style.visibility = "visible";
+}
+
+/*
+Stop the game and reset the score and the obstacles.
+*/
+function stop(){
+  running = false;
+
+  for(const side in pannels){
+    pannels[side].obstacles = [];
+  }
+
+  document.getElementById("pause").style.visibility = "visible";
+  score = 0;
+}
+
+/*
+Handle if the spacebar is pressed. It will pause or play the game depending of its state.
+*/
+function keyPress(event){
+  if(event.which == 32){
+    if(running){
+      pause();
+    } else {
+      start();
+    }
   }
 }
 
-function drawGeneral(ctx, canvas, navigator_, obstacles){
+// GAME LOOPS -----------------------------------------------------------
+/*
+Draw pannel and its elements (obstacles and navigator).
+*/
+function drawPannel(side){
+  let ctx = side.ctx;
+  let canvas = side.canvas;
+  let navigator_ = side.navigator;
+  let obstacles = side.obstacles;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   navigator_.draw(ctx);
 
   for(let i=0; i < obstacles.length; i++){
     let obstacle = obstacles[i];
-    obstacle.update();
     obstacle.draw(ctx);
   }
+}
 
-  if(obstacles.length > 0 && hasCollide(navigator_, obstacles[0])){
-    stop();
+/*
+Update the pannel's elements (obstacles and navigator).
+*/
+function updatePannel(side){
+  let navigator_ = side.navigator;
+  let obstacles = side.obstacles;
+
+  // Update obstacles
+  for(let i=0; i < obstacles.length; i++){
+    let obstacle = obstacles[i];
+    obstacle.update();
   }
 
+  // Delete the lowest obstacle if it is sufficiently out of the screen.
   if(obstacles.length > 0 && obstacles[0].y > 1000 + (obstacles[0].radius)/2){
     obstacles.splice(0, 1);
   }
 
+  /* 
+  Add an obstacle if 
+    - there is no obstacle yet
+            OR
+      - the uppest obstacle is low enough to let space for a new obstacle 
+                AND
+      - depending on a propability of 0.5
+  */
   if(obstacles.length == 0 || (obstacles[obstacles.length-1].y > 300 && Math.floor(Math.random() * 10) > 5)){
     obstacles.push(new Obstacle(Math.floor(Math.random() * 1000)));
   }
 }
 
-function hasCollide(nav, obs){
-  var dx = nav.x - obs.x;
-  var dy = nav.y - obs.y;
-  var distance = Math.sqrt(dx * dx + dy * dy);
+/*
+Check if the side must end the game. End it, if it is the case.
+*/
+function checkEndSide(side){
+  let navigator_ = side.navigator;
+  let obstacles = side.obstacles;
 
-  return (distance < nav.radius + obs.radius);
+  // Stop the game if there is a collision between the navigator and the lowest obstacle.
+  if(obstacles.length > 0 && navigator_.hasCollide(obstacles[0])){
+    stop();
+  }
 }
 
-function start(){
-  running = true;
-  document.getElementById("pauseText").style.visibility = "hidden";
+/*
+Main loop of the game.
+*/
+function loop(){
+  if(running){
+    // Update score
+    score++;
+    document.getElementById("score").innerHTML = "Score : "+score;
+    // Update and draw pannels
+    for(const side in pannels){
+      updatePannel(pannels[side]);
+      drawPannel(pannels[side]);
+      checkEndSide(pannels[side]);
+    }
+  }
 }
 
-function pause(){
-  running = false;
-  document.getElementById("pauseText").style.visibility = "visible";
-}
-
-function stop(){
-  running = false;
-  obstacleRight = [];
-  obstacleLeft = [];
-  document.getElementById("pauseText").style.visibility = "visible";
-  score = 0;
-}
 
 window.onload = function (){
-  window.setInterval(draw, 10);
+  window.setInterval(loop, 10);
   start();
 }
